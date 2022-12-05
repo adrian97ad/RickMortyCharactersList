@@ -4,7 +4,6 @@ class CharactersManager {
         this.rickAndMortyAPI = new RickAndMortyAPI();
         this.characterTemplate = null;
         this.jq = $('.charactersList');
-        this.lastIdModified = null;
     }
 
     static getInstance() {
@@ -25,11 +24,13 @@ class CharactersManager {
             let stop = Math.min(5, data.info.count);
             for (let i = 0; i < stop; i++) {
                 let newCharacter = new Character(CharactersManager.getInstance().jq, data.results[i].name,
-                    data.results[i].status, data.results[i].species, data.results[i].type, data.results[i].gender);
-                newCharacter.completeInfo(data.results[i].image, data.results[i].url, data.results[i].location, data.results[i].episode);
+                    data.results[i].status, data.results[i].species, data.results[i].type, data.results[i].gender, data.results[i].id);
+                newCharacter.completeInfo(data.results[i].image, data.results[i].url, data.results[i].location, data.results[i].episode[0]);
                 CharactersManager.getInstance().addCharacterToList(data.results[i].id, newCharacter);
-                CharactersManager.getInstance().getEpisode(data.results[i].episode).then(data => {
-                    CharactersManager.getInstance().getCurrentCharacter().setEpisodeName(data.name).updateLastSeenLocation();
+                CharactersManager.getInstance().getEpisode(data.results[i].episode[0]).then(data => {
+                    CharactersManager.getInstance().getCharacterByEpisode(data.id).forEach(character => {
+                        character.setEpisodeName(data.name).updateLastSeenLocation();
+                    })
                 }).catch(error => {
                     console.log(error);
                 });
@@ -45,12 +46,13 @@ class CharactersManager {
         if (this._charactersList.get(id) === undefined) {
             character.addToList();
         }
-        this.lastIdModified = id;
         this._charactersList.set(id, character);
     }
 
-    getCurrentCharacter() {
-        return this._charactersList.get(this.lastIdModified);
+    getCharacterByEpisode(id) {
+        return [...this._charactersList.values()].filter(character => {
+            return parseInt(character.episode.url.match(/\d+/g)[0]) === id;
+        });
     }
 
     clear() {
@@ -85,9 +87,10 @@ class CharacterTemplate {
 }
 
 class Character extends CharacterTemplate {
-    constructor($root, name, status, species, type, gender) {
-        super(name, status, species, type, gender);
+    constructor($root, name, status, species, type, gender, id) {
+        super(name, status, species, type, gender, id);
         this.root = $root;
+        this.id = id;
     }
 
     completeInfo(img, url, location, episodeUrl) {
@@ -106,8 +109,8 @@ class Character extends CharacterTemplate {
     }
 
     addToList() {
-        this.root.append(`<div class="character"></div>`);
-        this.jq = this.root.children().last();
+        this.root.append(`<div class="character" id="character-${this.id}"></div>`);
+        this.jq = $(`#character-${this.id}`);
         this.addImg().addInfo().fillInfo();
         return this;
     }
