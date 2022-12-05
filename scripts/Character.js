@@ -4,6 +4,7 @@ class CharactersManager {
         this.rickAndMortyAPI = new RickAndMortyAPI();
         this.characterTemplate = null;
         this.jq = $('.charactersList');
+        this.episodes = new Map();
     }
 
     static getInstance() {
@@ -20,21 +21,17 @@ class CharactersManager {
 
     newList() {
         this.clear();
-        this.getCharacters().then(data => {
+        CharactersManager.getInstance().getCharacters().then(data => {
             let stop = Math.min(5, data.info.count);
             for (let i = 0; i < stop; i++) {
                 let newCharacter = new Character(CharactersManager.getInstance().jq, data.results[i].name,
                     data.results[i].status, data.results[i].species, data.results[i].type, data.results[i].gender, data.results[i].id);
                 newCharacter.completeInfo(data.results[i].image, data.results[i].url, data.results[i].location, data.results[i].episode[0]);
                 CharactersManager.getInstance().addCharacterToList(data.results[i].id, newCharacter);
-                CharactersManager.getInstance().getEpisode(data.results[i].episode[0]).then(data => {
-                    CharactersManager.getInstance().getCharacterByEpisode(data.id).forEach(character => {
-                        character.setEpisodeName(data.name).updateLastSeenLocation();
-                    })
-                }).catch(error => {
-                    console.log(error);
-                });
+                CharactersManager.getInstance().addEpisodeToList(data.results[i].episode[0]);
             }
+        }).then(() => {
+            CharactersManager.getInstance().addEpisodesToCharacters();
         }).catch(error => {
             console.log(error);
         });
@@ -49,9 +46,27 @@ class CharactersManager {
         this._charactersList.set(id, character);
     }
 
+    addEpisodeToList(url) {
+        this.episodes.set(parseInt(url.match(/\d+/g)[0]), url);
+    }
+    getAllEpisodesURLs() {
+        return [...this.episodes.values()];
+    }
     getCharacterByEpisode(id) {
         return [...this._charactersList.values()].filter(character => {
             return parseInt(character.episode.url.match(/\d+/g)[0]) === id;
+        });
+    }
+
+    addEpisodesToCharacters() {
+        this.getAllEpisodesURLs().forEach((episode) => {
+            CharactersManager.getInstance().getEpisode(episode).then(data => {
+                CharactersManager.getInstance().getCharacterByEpisode(data.id).forEach(character => {
+                    character.setEpisodeName(data.name).updateLastSeenLocation();
+                })
+            }).catch(error => {
+                console.log(error);
+            });
         });
     }
 
