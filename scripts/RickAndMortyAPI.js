@@ -20,4 +20,9 @@ class RickAndMortyAPI {
         const data = await fetch(`${this.urls.characters}?${params.substring(1)}`);
         return data.json();
     }
+
+    async getEpisode(episodeUrl) {
+        const data = await fetch(episodeUrl);
+        return data.json();
+    }
 }

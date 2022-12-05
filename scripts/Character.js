@@ -4,6 +4,7 @@ class CharactersManager {
         this.rickAndMortyAPI = new RickAndMortyAPI();
         this.characterTemplate = null;
         this.jq = $('.charactersList');
+        this.lastIdModified = null;
     }
 
     static getInstance() {
@@ -25,13 +26,13 @@ class CharactersManager {
             for (let i = 0; i < stop; i++) {
                 let newCharacter = new Character(CharactersManager.getInstance().jq, data.results[i].name,
                     data.results[i].status, data.results[i].species, data.results[i].type, data.results[i].gender);
-                newCharacter.completeInfo(data.results[i].image, data.results[i].url, data.results[i].location, data.results[i].origin);
+                newCharacter.completeInfo(data.results[i].image, data.results[i].url, data.results[i].location, data.results[i].episode);
                 CharactersManager.getInstance().addCharacterToList(data.results[i].id, newCharacter);
-                // $('.hoverHref').each(function(){
-                //     $(this).on('click', function (e) {
-                //         e.preventDefault();
-                //     });
-                // });
+                CharactersManager.getInstance().getEpisode(data.results[i].episode).then(data => {
+                    CharactersManager.getInstance().getCurrentCharacter().setEpisodeName(data.name).updateLastSeenLocation();
+                }).catch(error => {
+                    console.log(error);
+                });
             }
         }).catch(error => {
             console.log(error);
@@ -44,7 +45,12 @@ class CharactersManager {
         if (this._charactersList.get(id) === undefined) {
             character.addToList();
         }
+        this.lastIdModified = id;
         this._charactersList.set(id, character);
+    }
+
+    getCurrentCharacter() {
+        return this._charactersList.get(this.lastIdModified);
     }
 
     clear() {
@@ -54,6 +60,9 @@ class CharactersManager {
 
     async getCharacters() {
         return this.rickAndMortyAPI.getCharacters(this.characterTemplate.getAttributesInArray())
+    }
+    async getEpisode(episodeURL) {
+        return this.rickAndMortyAPI.getEpisode(episodeURL);
     }
 }
 
@@ -81,11 +90,18 @@ class Character extends CharacterTemplate {
         this.root = $root;
     }
 
-    completeInfo(img, url, location, origin) {
+    completeInfo(img, url, location, episodeUrl) {
         this.img = img;
         this.url = url;
         this.location = location;
-        this.origin = origin;
+        this.episode = {
+            url: episodeUrl,
+            name: null
+        }
+        return this;
+    }
+    setEpisodeName(name){
+        this.episode.name = name;
         return this;
     }
 
@@ -111,7 +127,9 @@ class Character extends CharacterTemplate {
     fillInfo() {
         this.jq.children('.character-info').append(`${this._getTemplateNameStatusType()}`)
             .append(`${this._getTemplateLocation()}`)
-            .append(`${this._getTemplateOrigin()}`);
+    }
+    updateLastSeenLocation() {
+        this.jq.children('.character-info').append(`${this._getTemplateEpisode()}`);
     }
 
     _getTemplateNameStatusType() {
@@ -131,10 +149,10 @@ class Character extends CharacterTemplate {
                 </div>`;
     }
 
-    _getTemplateOrigin() {
-        return `<div class="character-origin character-stats-group">
+    _getTemplateEpisode() {
+        return `<div class="character-episode character-stats-group">
                     <div class="character-stat-tittle">First seen in:</div>
-                    <div class="character-origin-content hoverHref" onclick="window.open('${this.origin.url}', '_blank');">${this.origin.name}</div>
+                    <div class="character-episode-content hoverHref" onclick="window.open('${this.episode.url}', '_blank');">${this.episode.name}</div>
                 </div>`;
     }
 
